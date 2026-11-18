@@ -30,7 +30,7 @@ $ips = @($pods -split "`n" | Where-Object { $_.Trim() })
 if ($ips.Count -eq 0) { Falhar "nenhum pod do donation-service rodando" }
 
 $metodo = if ($Desligar) { "DELETE" } else { "POST" }
-$urls = ($ips | ForEach-Object { "http://$($_.Trim()):8082/admin/chaos?mode=$Modo&percent=$Percentual" }) -join " "
+$listaIps = ($ips | ForEach-Object { $_.Trim() }) -join " "
 
 kubectl delete pod chaos -n $ns --ignore-not-found --wait=true 2>$null | Out-Null
 $manifest = @"
@@ -55,12 +55,14 @@ spec:
               key: ADMIN_TOKEN
       command: ["sh", "-c"]
       args:
-        - 'for u in $urls; do curl -s -X $metodo -H "Authorization: Bearer `$TOKEN" "`$u"; echo; done'
+        - 'for ip in $listaIps; do curl -s -X $metodo -H "Authorization: Bearer `$TOKEN" "http://`$ip:8082/admin/chaos?mode=$Modo&percent=$Percentual"; echo; done'
 "@
 $manifest | kubectl apply -f - | Out-Null
 kubectl wait --for=jsonpath='{.status.phase}'=Succeeded pod/chaos -n $ns --timeout=90s | Out-Null
-kubectl logs chaos -n $ns
+$resp = kubectl logs chaos -n $ns
 kubectl delete pod chaos -n $ns --ignore-not-found 2>$null | Out-Null
+$resp
+if (($resp | Out-String) -notmatch '"chaos"') { Falhar "o donation-service não confirmou o comando de chaos" }
 
 if ($Desligar) { Write-Host "Falha desligada nos $($ips.Count) pods." -ForegroundColor Yellow; exit 0 }
 

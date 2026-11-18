@@ -10,8 +10,9 @@
 .EXAMPLE
   .\scripts\gerar-trafego.ps1          # inicia e mostra o log (Ctrl+C só sai do log)
   .\scripts\gerar-trafego.ps1 -Parar   # remove o pod
+  .\scripts\gerar-trafego.ps1 -SemLog  # inicia e volta o terminal
 #>
-param([switch]$Parar)
+param([switch]$Parar, [switch]$SemLog)
 . (Join-Path $PSScriptRoot "_comum.ps1")
 $ns = "solidarytech"
 
@@ -69,4 +70,5 @@ if ($LASTEXITCODE -ne 0) { Falhar "não consegui criar o pod de tráfego" }
 kubectl wait --for=condition=Ready pod/trafego -n $ns --timeout=90s | Out-Null
 Write-Host "Tráfego rodando no pod 'trafego' (Ctrl+C sai do log; o tráfego continua)." -ForegroundColor Green
 Write-Host "Para parar: .\scripts\gerar-trafego.ps1 -Parar`n"
+if ($SemLog) { exit 0 }
 kubectl logs -f trafego -n $ns

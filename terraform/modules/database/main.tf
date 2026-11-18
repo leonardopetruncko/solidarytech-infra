@@ -81,7 +81,7 @@ resource "aws_db_instance" "postgres" {
 
   tags = {
     Name    = "${var.name}-postgres"
-    Service = "ngo-service,donation-service"
+    Service = "ngo-service/donation-service" # vírgula não é aceita em tag do RDS
   }
 }
 

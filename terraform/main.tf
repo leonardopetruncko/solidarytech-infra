@@ -62,6 +62,17 @@ resource "aws_db_instance_automated_backups_replication" "dr" {
 
   source_db_instance_arn = module.database.rds_arn
   retention_period       = 7
+  kms_key_id             = aws_kms_key.rds_dr[0].arn # banco criptografado: a cópia exige chave na região de destino
+}
+
+# Chave KMS na região de DR para criptografar os backups replicados (~US$ 1/mês).
+resource "aws_kms_key" "rds_dr" {
+  count    = var.site == "primary" && var.rds_cross_region_backup ? 1 : 0
+  provider = aws.backup
+
+  description             = "SolidaryTech - backups do RDS replicados para o DR"
+  deletion_window_in_days = 7
+  enable_key_rotation     = true
 }
 
 module "messaging" {

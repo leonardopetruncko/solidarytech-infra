@@ -13,8 +13,9 @@
 .EXAMPLE
   .\scripts\dr.ps1             # ativa o DR
   .\scripts\dr.ps1 -Destruir   # desliga o DR
+  .\scripts\dr.ps1 -Plano      # só mostra o que seria criado em us-west-2 (sem custo)
 #>
-param([switch]$Destruir, [string]$EnvFile = (Join-Path $PSScriptRoot "fase5.env"))
+param([switch]$Destruir, [switch]$Plano, [string]$EnvFile = (Join-Path $PSScriptRoot "fase5.env"))
 . (Join-Path $PSScriptRoot "_comum.ps1")
 $inicio = Get-Date
 
@@ -24,6 +25,13 @@ $conta = Conta-Aws
 Terraform-Init $conta
 terraform "-chdir=$TfDir" workspace select -or-create dr | Out-Null
 Ok "workspace dr (state separado do primário)"
+
+if ($Plano) {
+    Passo "terraform plan do DR em us-west-2 (nada é criado)"
+    terraform "-chdir=$TfDir" plan -input=false "-var-file=envs/dr.tfvars" "-var=install_addons=false"
+    terraform "-chdir=$TfDir" workspace select default | Out-Null
+    exit 0
+}
 
 if ($Destruir) {
     terraform "-chdir=$TfDir" destroy -auto-approve -input=false "-var-file=envs/dr.tfvars" "-var=install_addons=true"

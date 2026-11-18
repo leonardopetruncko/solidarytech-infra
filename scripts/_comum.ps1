@@ -92,6 +92,10 @@ function Criar-Secrets($tf, $cfg) {
     Aplicar-Namespace "solidarytech"
     Aplicar-Namespace "observability"
 
+    # Região do site ativo: o mesmo manifesto GitOps roda no primário e no DR.
+    kubectl create configmap solidarytech-site -n solidarytech "--from-literal=AWS_REGION=$($tf.region.value)" "--from-literal=SITE=$($tf.site.value)" --dry-run=client -o yaml | kubectl apply -f - | Out-Null
+    Ok "configmap solidarytech/solidarytech-site ($($tf.site.value) em $($tf.region.value))"
+
     Aplicar-Secret "solidarytech" "solidarytech-db-admin" @{ PGHOST = $rds; PGUSER = "dbadmin"; PGPASSWORD = $master }
 
     # Um usuário por serviço (menor privilégio). Reaproveita a senha se o secret já existe.

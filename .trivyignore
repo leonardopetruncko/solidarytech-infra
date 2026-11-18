@@ -1,0 +1,14 @@
+# Exceções de segurança ACEITAS (risk acceptance), revisadas e justificadas.
+# Qualquer achado CRITICAL fora desta lista derruba o pipeline de infraestrutura.
+
+# AWS-0040 / AWS-0041: endpoint público do EKS.
+# Necessário no AWS Academy: não há VPN/bastion e o kubectl roda da máquina do operador.
+# Mitigação: autenticação IAM obrigatória (aws eks get-token) + endpoint privado
+# também ligado (os nós falam com o control plane pela rede interna).
+# Em produção real: public_access_cidrs restrito ao IP da VPN corporativa.
+AWS-0040
+AWS-0041
+
+# AWS-0104: saída liberada (egress 0.0.0.0/0) na SG do banco.
+# O RDS não inicia conexões; a regra é o padrão da AWS. A ENTRADA é restrita aos nós do EKS.
+AWS-0104

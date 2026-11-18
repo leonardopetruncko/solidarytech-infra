@@ -1,0 +1,76 @@
+name: IaC - Terraform (qualidade + segurança)
+
+# Pipeline da infraestrutura: formatação, validação, política de tags (FinOps) e
+# scan de segurança do código Terraform (IaC) com o Trivy.
+# O apply roda pelo scripts/subir.ps1 (credenciais do AWS Academy expiram a cada 4h).
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: fmt + validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.15.8'
+
+      - name: terraform fmt
+        run: terraform fmt -check -recursive -diff terraform
+
+      - name: terraform validate (raiz)
+        working-directory: terraform
+        run: |
+          terraform init -backend=false -input=false
+          terraform validate
+
+  finops-tags:
+    name: FinOps - política de tags
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # As tags obrigatórias precisam estar no default_tags do provider (vale para todos
+      # os recursos) e no launch template dos nós (instâncias criadas pelo Auto Scaling).
+      - name: Tags obrigatórias presentes
+        run: |
+          set -e
+          for tag in Project Environment CostCenter; do
+            grep -q "$tag" terraform/variables.tf || { echo "::error::tag $tag ausente em variables.tf"; exit 1; }
+          done
+          grep -q 'Project     = "SolidaryTech"' terraform/variables.tf
+          grep -q 'Environment = "Production"' terraform/variables.tf
+          grep -q 'CostCenter  = "NGO-Core"' terraform/variables.tf
+          grep -q 'default_tags' terraform/providers.tf
+          grep -q 'tag_specifications' terraform/modules/eks/main.tf
+          echo "Política de tags OK: Project=SolidaryTech, Environment=Production, CostCenter=NGO-Core"
+
+  iac-scan:
+    name: DevSecOps - Trivy IaC scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Relatório completo (HIGH e CRITICAL, não bloqueia)
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'terraform'
+          severity: 'HIGH,CRITICAL'
+          exit-code: '0'
+          trivyignores: '.trivyignore'
+
+      - name: Gate - falha em CRITICAL não justificado
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'config'
+          scan-ref: 'terraform'
+          severity: 'CRITICAL'
+          exit-code: '1'
+          trivyignores: '.trivyignore'

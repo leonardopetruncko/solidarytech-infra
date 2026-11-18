@@ -1,0 +1,13 @@
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+tfplan
+crash.log
+terraform.tfvars
+*.auto.tfvars
+.terraform.tfstate.lock.info
+
+# segredos locais
+scripts/fase5.env
+*.pem
